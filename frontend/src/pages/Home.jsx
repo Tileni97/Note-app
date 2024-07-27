@@ -3,110 +3,125 @@ import api from "../api";
 import Note from "../components/Note";
 import LoadingIndicator from "../components/LoadingIndicator";
 import "../styles/Home.css";
+import { Link } from "react-router-dom";
 
 function Home() {
   const [notes, setNotes] = useState([]);
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [tags, setTags] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     getNotes();
-  }, []);
+  }, [showArchived]);
 
   const getNotes = () => {
-    api
-      .get("/api/notes/")
-      .then((res) => {
-        setNotes(res.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching notes:", error);
-      });
-  };
-
-  const deleteNote = (id) => {
     setLoading(true);
     api
-      .delete(`/api/notes/delete/${id}/`)
-      .then((res) => {
-        if (res.status === 204) {
-          console.log("Note deleted successfully");
-          getNotes(); // Refresh notes after deletion
-        } else {
-          console.error("Failed to delete note:", res.data);
-        }
-      })
-      .catch((error) => {
-        console.error("Error deleting note:", error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .get(`/api/notes/?is_archived=${showArchived}&search=${searchTerm}`)
+      .then((res) => setNotes(res.data))
+      .catch((err) => console.error("Error fetching notes:", err))
+      .finally(() => setLoading(false));
   };
 
   const createNote = (e) => {
     e.preventDefault();
     setLoading(true);
     api
-      .post("/api/notes/", { title, content })
-      .then((res) => {
-        if (res.status === 201) {
-          console.log("Note created successfully");
-          setTitle("");
-          setContent("");
-          getNotes(); // Refresh notes after creation
-        } else {
-          console.error("Failed to create note:", res.data);
-        }
+      .post("/api/notes/", { title, content, tags })
+      .then(() => {
+        getNotes();
+        setTitle("");
+        setContent("");
+        setTags("");
       })
-      .catch((error) => {
-        console.error("Error creating note:", error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch((err) => console.error("Error creating note:", err))
+      .finally(() => setLoading(false));
+  };
+
+  const deleteNote = (id) => {
+    setLoading(true);
+    api
+      .delete(`/api/notes/${id}/`)
+      .then(() => getNotes())
+      .catch((err) => console.error("Error deleting note:", err))
+      .finally(() => setLoading(false));
+  };
+
+  const editNote = (id, updatedNote) => {
+    setLoading(true);
+    api
+      .put(`/api/notes/${id}/`, updatedNote)
+      .then(() => getNotes())
+      .catch((err) => console.error("Error updating note:", err))
+      .finally(() => setLoading(false));
+  };
+
+  const archiveNote = (id) => {
+    setLoading(true);
+    api
+      .put(`/api/notes/${id}/archive/`)
+      .then(() => getNotes())
+      .catch((err) => console.error("Error archiving note:", err))
+      .finally(() => setLoading(false));
   };
 
   return (
-    <div>
-      <div className="notes-section">
-        <h2>Notes</h2>
-        {loading ? (
-          <LoadingIndicator />
-        ) : (
-          notes.map((note) => (
-            <Note key={note.id} note={note} onDelete={deleteNote} />
-          ))
-        )}
+    <div className="home-container">
+      <h1>My Notes</h1>
+      <Link to="/profile">View Profile</Link>
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search notes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <button onClick={getNotes}>Search</button>
       </div>
-      <div className="form-section">
-        <h2>Create a Note</h2>
-        <form onSubmit={createNote}>
-          <label htmlFor="title">Title</label>
-          <br />
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-          <br />
-          <label htmlFor="content">Content</label>
-          <br />
-          <textarea
-            id="content"
-            name="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-          />
-          <br />
-          <button type="submit">Create Note</button>
-        </form>
-      </div>
+      <button onClick={() => setShowArchived(!showArchived)}>
+        {showArchived ? "Show Active" : "Show Archived"}
+      </button>
+      <form onSubmit={createNote} className="note-form">
+        <input
+          type="text"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+        <textarea
+          placeholder="Content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          required
+        />
+        <input
+          type="text"
+          placeholder="Tags (comma-separated)"
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+        />
+        <button type="submit">Create Note</button>
+      </form>
+      {loading ? (
+        <LoadingIndicator />
+      ) : (
+        <div className="notes-list">
+          {notes.map((note) => (
+            <Note
+              key={note.id}
+              note={note}
+              onDelete={deleteNote}
+              onEdit={editNote}
+              onArchive={archiveNote}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

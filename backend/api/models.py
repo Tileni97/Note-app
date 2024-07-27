@@ -1,6 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    bio = models.TextField(blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+
+    def __str__(self):
+        return self.user.username
+
 class Note(models.Model):
     title = models.CharField(max_length=100)
     content = models.TextField()
@@ -20,3 +28,5 @@ class Note(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Note'
         verbose_name_plural = 'Notes'
+
+
