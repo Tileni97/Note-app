@@ -4,7 +4,7 @@ from rest_framework import generics, status, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .serializers import UserSerializer, NoteSerializer, UserProfileSerializer, NoteListSerializer, TagSerializer
+from .serializers import UserSerializer, NoteSerializer, UserProfileSerializer, NoteListSerializer, TagSerializer, NotePinSerializer
 from .models import Note, Tag, UserProfile
 from .permissions import IsOwnerOrReadOnly
 
@@ -51,38 +51,75 @@ class NoteListCreate(generics.ListCreateAPIView):
     def get_queryset(self):
         return Note.objects.filter(author=self.request.user)
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        files = request.FILES.getlist('attachments')
+        
+        serializer = self.get_serializer(data=data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        note = serializer.save(author=self.request.user)
+        
+        for file in files:
+            Attachment.objects.create(note=note, file=file)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class NoteRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = NoteSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'slug'
+    queryset = Note.objects.all()  # Add this line to specify the queryset
 
-    def get_queryset(self):
-        return Note.objects.filter(author=self.request.user)
+    def put(self, request, *args, **kwargs):
+        note = self.get_object()
+        serializer = self.get_serializer(note, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class NoteArchive(generics.UpdateAPIView):
     serializer_class = NoteSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'slug'
 
     def get_queryset(self):
         return Note.objects.filter(author=self.request.user)
 
     def perform_update(self, serializer):
-        serializer.save(is_archived=not serializer.instance.is_archived)
+        instance = serializer.save(is_archived=not serializer.instance.is_archived)
+        return instance
+
+    def put(self, request, *args, **kwargs):
+        note = self.get_object()
+        note.is_archived = not note.is_archived
+        note.save()
+        serializer = self.get_serializer(note)
+        return Response({
+            'status': 'success',
+            'is_archived': note.is_archived
+        }, status=status.HTTP_200_OK)
 
 class NotePin(generics.UpdateAPIView):
-    serializer_class = NoteSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    serializer_class = NotePinSerializer
+    permission_classes = [IsAuthenticated]
     lookup_field = 'slug'
 
     def get_queryset(self):
         return Note.objects.filter(author=self.request.user)
 
-    def perform_update(self, serializer):
-        serializer.save(is_pinned=not serializer.instance.is_pinned)
+    def put(self, request, *args, **kwargs):
+        note = self.get_object()
+        note.is_pinned = not note.is_pinned
+        note.save()
+        serializer = self.get_serializer(note)
+        return Response({
+            'status': 'success',
+            'is_pinned': note.is_pinned
+        }, status=status.HTTP_200_OK)
 
 class TagListCreate(generics.ListCreateAPIView):
     serializer_class = TagSerializer

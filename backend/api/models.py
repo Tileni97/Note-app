@@ -1,6 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from slugify import slugify
+import random
+import string
+
+def generate_unique_slug(instance, new_slug=None):
+    slug = new_slug or slugify(instance.title)
+    Klass = instance.__class__
+    qs_exists = Klass.objects.filter(slug=slug).exists()
+    if qs_exists:
+        random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        slug = f"{slug}-{random_string}"
+        return generate_unique_slug(instance, new_slug=slug)
+    return slug
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -38,7 +51,7 @@ class Note(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
+            self.slug = generate_unique_slug(self)  # Use the unique slug generation function
         super().save(*args, **kwargs)
 
     def __str__(self):

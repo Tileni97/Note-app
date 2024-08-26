@@ -1,13 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import "../styles/Note.css";
+import NoteForm from "./NoteForm";
 
 function Note({ note, onDelete, onEdit, onArchive, onPin }) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const formattedCreatedDate = new Date(note.created_at).toLocaleDateString(
     "en-US"
   );
   const formattedUpdatedDate = new Date(note.updated_at).toLocaleDateString(
     "en-US"
   );
+
+  const handleEdit = (updatedNote) => {
+    onEdit(note.slug, updatedNote);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return <NoteForm onSubmit={handleEdit} initialValues={note} />;
+  }
 
   return (
     <div
@@ -26,7 +38,7 @@ function Note({ note, onDelete, onEdit, onArchive, onPin }) {
       <button className="delete-button" onClick={() => onDelete(note.slug)}>
         Delete
       </button>
-      <button className="edit-button" onClick={() => onEdit(note.slug)}>
+      <button className="edit-button" onClick={() => setIsEditing(true)}>
         Edit
       </button>
       <button className="archive-button" onClick={() => onArchive(note.slug)}>
