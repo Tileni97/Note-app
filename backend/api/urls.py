@@ -3,8 +3,8 @@ from . import views
 
 urlpatterns = [
     # User-related URLs
-    path("user/create/", views.CreateUserView.as_view(), name="user-create"),
     path("user/profile/", views.UserProfileView.as_view(), name="user-profile"),
+    path("user/profile/update/", views.UpdateUserProfileView.as_view(), name="user-profile-update"),
 
     # Note-related URLs
     path("notes/", views.NoteListCreate.as_view(), name="note-list-create"),

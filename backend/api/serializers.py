@@ -20,20 +20,28 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_joined', 'last_login']
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(required=False)
-
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password", "profile"]
-        extra_kwargs = {"password": {"write_only": True}}
+        fields = ["username", "password"]
+        extra_kwargs = {
+            "password": {"write_only": True},
+            "username": {"required": True, "allow_blank": False}
+        }
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        return value
 
     def create(self, validated_data):
-        profile_data = validated_data.pop('profile', None)
-        user = User.objects.create_user(**validated_data)
-        if profile_data:
-            UserProfile.objects.create(user=user, **profile_data)
-        return user
-
+        try:
+            user = User.objects.create_user(**validated_data)
+            UserProfile.objects.create(user=user)
+            return user
+        except Exception as e:
+            print(f"Error creating user: {str(e)}")
+            raise serializers.ValidationError(str(e))
+            
 class NoteSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, required=False)
     attachments = AttachmentSerializer(many=True, read_only=True)

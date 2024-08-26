@@ -1,78 +1,92 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import api from "../api";
 import Note from "../components/Note";
-import LoadingIndicator from "../components/LoadingIndicator";
 import "../styles/Home.css";
-import { Link } from "react-router-dom";
 
 function Home() {
   const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [color, setColor] = useState("#FFFFFF");
   const [showArchived, setShowArchived] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     getNotes();
-  }, [showArchived]);
+  }, [showArchived, searchTerm]);
 
   const getNotes = () => {
-    setLoading(true);
     api
       .get(`/api/notes/?is_archived=${showArchived}&search=${searchTerm}`)
-      .then((res) => setNotes(res.data))
-      .catch((err) => console.error("Error fetching notes:", err))
-      .finally(() => setLoading(false));
+      .then((res) => res.data)
+      .then((data) => {
+        setNotes(data);
+        console.log(data);
+      })
+      .catch((err) => alert(err));
+  };
+
+  const deleteNote = (slug) => {
+    api
+      .delete(`/api/notes/${slug}/`)
+      .then((res) => {
+        if (res.status === 204) alert("Note deleted!");
+        else alert("Failed to delete note.");
+        getNotes();
+      })
+      .catch((error) => alert(error));
   };
 
   const createNote = (e) => {
     e.preventDefault();
-    setLoading(true);
+    const tagsArray = tags.split(",").map((tag) => ({ name: tag.trim() }));
     api
-      .post("/api/notes/", { title, content, tags })
-      .then(() => {
+      .post("/api/notes/", { content, title, tags: tagsArray, color })
+      .then((res) => {
+        if (res.status === 201) alert("Note created!");
+        else alert("Failed to make note.");
         getNotes();
-        setTitle("");
         setContent("");
+        setTitle("");
         setTags("");
+        setColor("#FFFFFF");
       })
-      .catch((err) => console.error("Error creating note:", err))
-      .finally(() => setLoading(false));
+      .catch((err) => alert(err));
   };
 
-  const deleteNote = (id) => {
-    setLoading(true);
+  const editNote = (slug, updatedNote) => {
     api
-      .delete(`/api/notes/${id}/`)
-      .then(() => getNotes())
-      .catch((err) => console.error("Error deleting note:", err))
-      .finally(() => setLoading(false));
+      .put(`/api/notes/${slug}/`, updatedNote)
+      .then(() => {
+        alert("Note updated!");
+        getNotes();
+      })
+      .catch((err) => alert(err));
   };
 
-  const editNote = (id, updatedNote) => {
-    setLoading(true);
+  const archiveNote = (slug) => {
     api
-      .put(`/api/notes/${id}/`, updatedNote)
-      .then(() => getNotes())
-      .catch((err) => console.error("Error updating note:", err))
-      .finally(() => setLoading(false));
+      .put(`/api/notes/${slug}/archive/`)
+      .then(() => {
+        alert("Note archive status changed!");
+        getNotes();
+      })
+      .catch((err) => alert(err));
   };
 
-  const archiveNote = (id) => {
-    setLoading(true);
+  const pinNote = (slug) => {
     api
-      .put(`/api/notes/${id}/archive/`)
-      .then(() => getNotes())
-      .catch((err) => console.error("Error archiving note:", err))
-      .finally(() => setLoading(false));
+      .put(`/api/notes/${slug}/pin/`)
+      .then(() => {
+        alert("Note pin status changed!");
+        getNotes();
+      })
+      .catch((err) => alert(err));
   };
 
   return (
-    <div className="home-container">
-      <h1>My Notes</h1>
-      <Link to="/profile">View Profile</Link>
+    <div>
       <div className="search-bar">
         <input
           type="text"
@@ -80,48 +94,68 @@ function Home() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <button onClick={getNotes}>Search</button>
       </div>
       <button onClick={() => setShowArchived(!showArchived)}>
         {showArchived ? "Show Active" : "Show Archived"}
       </button>
-      <form onSubmit={createNote} className="note-form">
+      <div>
+        <h2>Notes</h2>
+        {notes.map((note) => (
+          <Note
+            note={note}
+            onDelete={deleteNote}
+            onEdit={editNote}
+            onArchive={archiveNote}
+            onPin={pinNote}
+            key={note.id}
+          />
+        ))}
+      </div>
+      <h2>Create a Note</h2>
+      <form onSubmit={createNote}>
+        <label htmlFor="title">Title:</label>
+        <br />
         <input
           type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          id="title"
+          name="title"
           required
+          onChange={(e) => setTitle(e.target.value)}
+          value={title}
         />
+        <br />
+        <label htmlFor="content">Content:</label>
+        <br />
         <textarea
-          placeholder="Content"
+          id="content"
+          name="content"
+          required
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          required
-        />
+        ></textarea>
+        <br />
+        <label htmlFor="tags">Tags (comma-separated):</label>
+        <br />
         <input
           type="text"
-          placeholder="Tags (comma-separated)"
+          id="tags"
+          name="tags"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
         />
-        <button type="submit">Create Note</button>
+        <br />
+        <label htmlFor="color">Color:</label>
+        <br />
+        <input
+          type="color"
+          id="color"
+          name="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+        />
+        <br />
+        <input type="submit" value="Submit"></input>
       </form>
-      {loading ? (
-        <LoadingIndicator />
-      ) : (
-        <div className="notes-list">
-          {notes.map((note) => (
-            <Note
-              key={note.id}
-              note={note}
-              onDelete={deleteNote}
-              onEdit={editNote}
-              onArchive={archiveNote}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
