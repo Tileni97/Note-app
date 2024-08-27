@@ -7,6 +7,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import UserSerializer, NoteSerializer, UserProfileSerializer, NoteListSerializer, TagSerializer, NotePinSerializer
 from .models import Note, Tag, UserProfile
 from .permissions import IsOwnerOrReadOnly
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
@@ -131,3 +133,15 @@ class TagRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = 'slug'
     queryset = Tag.objects.all()
+
+@api_view(['GET'])
+def note_stats(request):
+    total_notes = Note.objects.filter(author=request.user).count()
+    archived_notes = Note.objects.filter(author=request.user, is_archived=True).count()
+    pinned_notes = Note.objects.filter(author=request.user, is_pinned=True).count()
+
+    return Response({
+        'total': total_notes,
+        'archived': archived_notes,
+        'pinned': pinned_notes
+    })
