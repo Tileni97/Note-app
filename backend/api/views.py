@@ -9,6 +9,7 @@ from .models import Note, Tag, UserProfile
 from .permissions import IsOwnerOrReadOnly
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+import logging
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
@@ -30,12 +31,29 @@ class CreateUserView(generics.CreateAPIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
 
+    def create(self, request, *args, **kwargs):
+        logger.info("Received data: %s", request.data)
+        serializer = self.get_serializer(data=request.data)
+        
+        if not serializer.is_valid():
+            logger.error("Validation errors: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.exception("Error during user creation")
+            return Response({"detail": "An error occurred during user creation."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class UpdateUserProfileView(generics.UpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user.profile
+
+    def perform_update(self, serializer):
+        serializer.save()
 
 class NoteListCreate(generics.ListCreateAPIView):
     serializer_class = NoteSerializer

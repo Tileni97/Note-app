@@ -15,15 +15,26 @@ def generate_unique_slug(instance, new_slug=None):
         return generate_unique_slug(instance, new_slug=slug)
     return slug
 
+class Gender(models.TextChoices):
+    MALE = 'M', 'Male'
+    FEMALE = 'F', 'Female'
+    OTHER = 'O', 'Other'
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     bio = models.TextField(blank=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    gender = models.CharField(
+        max_length=1,
+        choices=Gender.choices,
+        blank=True,
+        null=True
+    )
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.user.username
+        return f"{self.user.username}'s profile"
 
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)

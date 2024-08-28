@@ -1,133 +1,223 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
+import { Card, CardContent, CardFooter } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "./ui/select";
+import { Badge } from "./ui/badge";
+import {
+  FaArchive,
+  FaThumbtack,
+  FaTrash,
+  FaEdit,
+  FaEye,
+  FaSpinner,
+} from "react-icons/fa";
 
 function NoteList() {
   const [notes, setNotes] = useState([]);
-  const [filterTag, setFilterTag] = useState("");
+  const [filterTags, setFilterTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     getNotes();
-  }, [filterTag, searchQuery, sortBy, sortOrder]);
+  }, [filterTags, searchQuery, sortBy, sortOrder]);
 
-  const getNotes = () => {
+  const getNotes = async () => {
+    setLoading(true);
     let url = `/api/notes/?ordering=${
       sortOrder === "desc" ? "-" : ""
     }${sortBy}`;
-    if (filterTag) url += `&tags__name=${filterTag}`;
+    if (filterTags.length) url += `&tags__name=${filterTags.join(",")}`;
     if (searchQuery) url += `&search=${searchQuery}`;
 
-    api
-      .get(url)
-      .then((res) => res.data)
-      .then((data) => {
-        setNotes(data);
-        console.log(data);
-      })
-      .catch((err) => alert(err));
+    try {
+      const response = await api.get(url);
+      if (Array.isArray(response.data.results)) {
+        setNotes(response.data.results);
+      } else {
+        console.error("Unexpected data structure:", response.data);
+        setNotes([]);
+      }
+    } catch (err) {
+      console.error("Error fetching notes:", err);
+      alert("Error fetching notes. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteNote = (slug) => {
-    api
-      .delete(`/api/notes/${slug}/`)
-      .then((res) => {
-        if (res.status === 204) alert("Note deleted!");
-        else alert("Failed to delete note.");
-        getNotes();
-      })
-      .catch((error) => alert(error));
+  const handleClearFilters = () => {
+    setFilterTags([]);
+    setSearchQuery("");
   };
 
-  const toggleArchive = (slug, currentState) => {
-    api
-      .put(`/api/notes/${slug}/archive/`, { is_archived: !currentState })
-      .then(() => getNotes())
-      .catch((err) => alert(err));
+  const handleToggleFilters = () => {
+    setShowFilters(!showFilters);
   };
 
-  const togglePin = (slug, currentState) => {
-    api
-      .put(`/api/notes/${slug}/pin/`, { is_pinned: !currentState })
-      .then(() => getNotes())
-      .catch((err) => alert(err));
+  const handleTagChange = (e) => {
+    setFilterTags(
+      e.target.value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag)
+    );
+  };
+
+  const handleSortChange = (value) => {
+    const [by, order] = value.split(":");
+    setSortBy(by);
+    setSortOrder(order);
   };
 
   return (
-    <div className="container mx-auto px-4">
-      <div className="my-8">
-        <input
-          type="text"
-          placeholder="Search notes"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="border rounded px-2 py-1 mr-2"
-        />
-        <input
-          type="text"
-          placeholder="Filter by tag"
-          value={filterTag}
-          onChange={(e) => setFilterTag(e.target.value)}
-          className="border rounded px-2 py-1 mr-2"
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="border rounded px-2 py-1 mr-2"
-        >
-          <option value="created_at">Created At</option>
-          <option value="updated_at">Updated At</option>
-          <option value="title">Title</option>
-        </select>
-        <select
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          <option value="asc">Ascending</option>
-          <option value="desc">Descending</option>
-        </select>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {notes.map((note) => (
-          <div
-            key={note.slug}
-            className="note-container border p-4 rounded shadow"
-          >
-            <p className="note-title font-bold">{note.title}</p>
-            <p className="note-content">{note.content}</p>
-            <p className="note-date text-gray-500">
-              {new Date(note.created_at).toLocaleDateString("en-US")}
-            </p>
-            <button
-              className="delete-button bg-red-500 text-white py-1 px-2 rounded mt-2"
-              onClick={() => deleteNote(note.slug)}
-            >
-              Delete
-            </button>
-            <button
-              className="archive-button bg-blue-500 text-white py-1 px-2 rounded mt-2 ml-2"
-              onClick={() => toggleArchive(note.slug, note.is_archived)}
-            >
-              {note.is_archived ? "Unarchive" : "Archive"}
-            </button>
-            <button
-              className="pin-button bg-yellow-500 text-white py-1 px-2 rounded mt-2 ml-2"
-              onClick={() => togglePin(note.slug, note.is_pinned)}
-            >
-              {note.is_pinned ? "Unpin" : "Pin"}
-            </button>
+    <div className="container mx-auto px-4 py-8">
+      {/* Filtering and sorting inputs */}
+      <div className="mb-8">
+        <Button onClick={handleToggleFilters} className="mb-4">
+          {showFilters ? "Hide Filters" : "Show Filters"}
+        </Button>
+        {showFilters && (
+          <div className="flex flex-col space-y-4">
+            <div>
+              <label className="block text-gray-700">Search</label>
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search notes..."
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700">Tags</label>
+              <Input
+                type="text"
+                value={filterTags.join(", ")}
+                onChange={handleTagChange}
+                placeholder="Enter tags separated by commas"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700">Sort By</label>
+              <Select
+                onValueChange={handleSortChange}
+                defaultValue="created_at:desc"
+              >
+                <SelectTrigger>
+                  <SelectValue>Sort by</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at:desc">
+                    Date Created (Newest First)
+                  </SelectItem>
+                  <SelectItem value="created_at:asc">
+                    Date Created (Oldest First)
+                  </SelectItem>
+                  <SelectItem value="title:asc">Title (A-Z)</SelectItem>
+                  <SelectItem value="title:desc">Title (Z-A)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleClearFilters} variant="outline">
+              Clear Filters
+            </Button>
           </div>
-        ))}
+        )}
       </div>
-      <Link
-        to="/notes/new"
-        className="bg-blue-500 text-white font-medium py-2 px-4 rounded hover:bg-blue-600 mt-8 inline-block"
-      >
-        Create Note
-      </Link>
+
+      {loading ? (
+        <div className="flex justify-center items-center h-32">
+          <FaSpinner className="animate-spin text-gray-500" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {notes.map((note) => (
+            <Card
+              key={note.slug}
+              className="relative flex flex-col hover:shadow-lg transition-shadow"
+              style={{ borderColor: note.color }}
+            >
+              <CardContent>
+                <h3 className="font-semibold text-lg mb-2">{note.title}</h3>
+                <p className="mb-2">
+                  {note.content && note.content.length > 100 ? (
+                    <>
+                      {note.content.substring(0, 100)}...
+                      <Link
+                        to={`/notes/${note.slug}`}
+                        className="text-blue-500 hover:underline"
+                      >
+                        Read more
+                      </Link>
+                    </>
+                  ) : (
+                    note.content
+                  )}
+                </p>
+                <div className="mt-2">
+                  {note.tags &&
+                    Array.isArray(note.tags) &&
+                    note.tags.map((tag) => (
+                      <Badge key={tag.id} className="mr-1">
+                        {tag.name}
+                      </Badge>
+                    ))}
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button asChild variant="outline" size="sm" title="View Note">
+                  <Link to={`/notes/${note.slug}`}>
+                    <FaEye className="mr-2" /> View
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" title="Edit Note">
+                  <Link to={`/notes/${note.slug}/edit`}>
+                    <FaEdit className="mr-2" /> Edit
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Archive Note"
+                  onClick={() =>
+                    confirm("Are you sure you want to archive this note?") &&
+                    console.log("Archive Note")
+                  }
+                >
+                  <FaArchive className="mr-2" /> Archive
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Delete Note"
+                  onClick={() =>
+                    confirm("Are you sure you want to delete this note?") &&
+                    console.log("Delete Note")
+                  }
+                >
+                  <FaTrash className="mr-2" /> Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Button asChild className="mt-8">
+        <Link to="/notes/new">Create Note</Link>
+      </Button>
     </div>
   );
 }
