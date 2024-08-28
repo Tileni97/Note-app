@@ -1,0 +1,34 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnp/
+.pnp.js
+
+# Django
+*.pyc
+*.pyo
+__pycache__/
+db.sqlite3
+*.log
+media/
+staticfiles/
+.env
+
+# Python virtual environment
+venv/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Build directories
+build/
+dist/
+.next/
+.parcel-cache/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
