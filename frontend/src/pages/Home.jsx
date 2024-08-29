@@ -13,16 +13,10 @@ const Home = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [noteStats, setNoteStats] = useState({
-    total: 0,
-    pinned: 0,
-    archived: 0,
-  });
 
   useEffect(() => {
     fetchAllNotes();
     fetchUserProfile();
-    fetchNoteStats();
   }, []);
 
   const fetchAllNotes = async () => {
@@ -44,16 +38,6 @@ const Home = () => {
       console.error("Error fetching user profile:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchNoteStats = async () => {
-    try {
-      const response = await api.get("/api/notes/stats/");
-      setNoteStats(response.data);
-    } catch (error) {
-      console.error("Failed to fetch note stats:", error);
-      setError("Failed to load note statistics. Please try again later.");
     }
   };
 
@@ -149,15 +133,11 @@ const Home = () => {
             <ul className="space-y-2">
               <li className="flex justify-between">
                 <span>Total Notes:</span>
-                <span className="font-semibold">{noteStats.total}</span>
+                <span className="font-semibold">{notes.length}</span>
               </li>
               <li className="flex justify-between">
                 <span>Pinned Notes:</span>
-                <span className="font-semibold">{noteStats.pinned}</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Archived Notes:</span>
-                <span className="font-semibold">{noteStats.archived}</span>
+                <span className="font-semibold">{pinnedNotes.length}</span>
               </li>
             </ul>
           </CardContent>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import api from "../api"; // Import the custom API configuration
 
 const UserProfile = () => {
   const [profile, setProfile] = useState({
@@ -16,6 +17,7 @@ const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +26,7 @@ const UserProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get("/api/user/profile/");
+      const response = await api.get("/users/profile/");
       setProfile(response.data);
     } catch (error) {
       setError("Error fetching profile.");
@@ -60,15 +62,16 @@ const UserProfile = () => {
           formData.append(key, profile[key]);
         }
       }
-      await axios.patch("/api/user/profile/update/", formData, {
+      await api.post("/users/profile/update/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("Profile updated successfully!");
+      setSuccess("Profile updated successfully!");
       setIsEditing(false);
       fetchProfile(); // Refresh profile data
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert("Failed to update profile. Please try again.");
+      setError("Failed to update profile. Please try again.");
     }
   };
 
@@ -76,19 +79,31 @@ const UserProfile = () => {
 
   const getAvatarUrl = (gender) => {
     const avatars = {
-      M: "https://avatar.iran.liara.run/male",
-      F: "https://avatar.iran.liara.run/female",
-      O: "https://avatar.iran.liara.run/other",
+      M: "https://avatar.iran.liara.run/public/boy",
+      F: "https://avatar.iran.liara.run/public/girl",
+      O: "https://avatar.iran.liara.run/public",
     };
     return avatars[gender] || avatars.O;
   };
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
 
   return (
     <div className="container mx-auto mt-8 p-4">
       <h2 className="text-2xl font-bold mb-4">User Profile</h2>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {success && (
+        <Alert className="mb-4">
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
+
       {isEditing ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
